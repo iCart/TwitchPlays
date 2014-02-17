@@ -1,0 +1,4 @@
+TwitchPlaysStreetFighter
+========================
+
+Inspired by TwitchPlaysPokemon
