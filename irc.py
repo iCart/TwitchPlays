@@ -1,9 +1,7 @@
 import socket
 from ConfigParser import SafeConfigParser
 
-#import win32com, win32api, win32con
-
-from time import gmtime, strftime
+from interface import WindowsInterface
 
 
 class TwitchIRCBot(object):
@@ -40,6 +38,7 @@ class TwitchIRCBot(object):
         readbuffer = ""
         while not self.stop:
             bytes_in = self.socket.recv(16)
+            print bytes_in,
             if bytes_in == '':
                 raise RuntimeError("Socket connection borken")
             readbuffer += bytes_in
@@ -80,50 +79,11 @@ class TwitchIRCBot(object):
         if token.lower() in self.interface.commands:
             self.interface.do(token)
 
-
-class Interface(object):
-    def __init__(self):
-        self.commands = ["up", "down", "left", "right", "a", "b", "start", "select"]
-
-    def do(self, token):
-        method = "cmd_" + token
-        try:
-            getattr(self, method)()
-        except Exception, e:
-            print "ERROR EXECUTING COMMAND:"
-            print e
-
-    # TODO: implement the actual sending of the command to the game window
-    # TODO: move this class to another file
-    def cmd_up(self):
-        print "PRESSING UP"
-
-    def cmd_down(self):
-        print "PRESSING DOWN"
-
-    def cmd_left(self):
-        print "PRESSING LEFT"
-
-    def cmd_right(self):
-        print "PRESSING RIGHT"
-
-    def cmd_a(self):
-        print "PRESSING A"
-
-    def cmd_b(self):
-        print "PRESSING B"
-
-    def cmd_start(self):
-        print "PRESSING START"
-
-    def cmd_select(self):
-        print "PRESSING SELECT"
-
-
 def main():
     config = SafeConfigParser()
     config.read("twitch.conf")
-    bot = TwitchIRCBot(config, Interface())
+
+    bot = TwitchIRCBot(config, WindowsInterface())
     bot.connect()
     bot.start_consuming()
 
