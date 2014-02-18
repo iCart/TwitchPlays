@@ -5,10 +5,6 @@ from ConfigParser import SafeConfigParser
 
 from time import gmtime, strftime
 
-strftime("%Y-%m-%d %H:%M:%S", gmtime())
-inputs = 0
-oath = "oauth:gxx3m0wtjseqhtw3e6fbsc2g4genqhy"
-
 
 class TwitchIRCBot(object):
     def __init__(self, config, interface):
