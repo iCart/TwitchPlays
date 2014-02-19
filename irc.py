@@ -40,7 +40,7 @@ class TwitchIRCBot(object):
             bytes_in = self.socket.recv(16)
             print bytes_in,
             if bytes_in == '':
-                raise RuntimeError("Socket connection borken")
+                self.connect()
             readbuffer += bytes_in
             # Split the buffer into lines
             lines = readbuffer.split('\r\n')
@@ -75,15 +75,18 @@ class TwitchIRCBot(object):
         return effective
 
     def consume_token(self, token):
-        # If this is something we know about, do it
-        if token.lower() in self.interface.commands:
-            self.interface.do(token)
+        try:
+            self.interface.do(token.lower())
+        except Exception, e:
+            print "Error processing token %s: %s" % (token, e, )
+
 
 def main():
     config = SafeConfigParser()
     config.read("twitch.conf")
-
-    bot = TwitchIRCBot(config, WindowsInterface())
+    inputcfg = SafeConfigParser()
+    inputcfg.read("input.conf")
+    bot = TwitchIRCBot(config, WindowsInterface(inputcfg))
     bot.connect()
     bot.start_consuming()
 

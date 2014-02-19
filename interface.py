@@ -5,56 +5,44 @@ import win32con
 
 
 class WindowsInterface(object):
-    #These are not implemented in win32con, because why would they be, right?
-    C_KEY = 0x43
-    X_KEY = 0x58
+    #key: human name, value: win32 virtual key value
+    normal_commands = {
+        'up': win32con.VK_UP,
+        'down': win32con.VK_DOWN,
+        'left': win32con.VK_LEFT,
+        'right': win32con.VK_RIGHT,
+        'enter': win32con.VK_RETURN,
+        'space': win32con.VK_SPACE
+    }
 
-    def __init__(self):
-        self.commands = ["up", "down", "left", "right", "a", "b", "start", "select"]
-        self.delay = .1
+    special_commands = {
 
-    def send_command(self, command):
-        win32api.keybd_event(command, 0, 0, 0)
-        time.sleep(self.delay)
-        win32api.keybd_event(command, 0, win32con.KEYEVENTF_KEYUP, 0)
+    }
+
+    def __init__(self, inputcfg):
+        self.default_delay = .1
+        self.inputcfg = inputcfg
 
     def do(self, token):
-        method = "cmd_" + token
+
         try:
-            getattr(self, method)()
+            command = self.inputcfg.get('Inputs', token)
         except Exception, e:
-            print "ERROR EXECUTING COMMAND:"
-            print e
+            return
 
-    def cmd_up(self):
-        print "PRESSING UP"
-        self.send_command(win32con.VK_UP)
+        if command in self.normal_commands:
+            self.send_command(self.normal_commands[command])
+        elif len(command) == 1 and ('a' < command < 'z'):
+            offset = ord(command) - ord('a')
+            self.send_command(0x41 + offset)
+        elif len(command) == 1 and ('0' < command < '9'):
+            offset = ord(command) - ord('0')
+            self.send_command(0x30 + offset)
+        elif command in self.special_commands:
+            self.special_commands[command]()
 
-    def cmd_down(self):
-        print "PRESSING DOWN"
-        self.send_command(win32con.VK_DOWN)
-
-    def cmd_left(self):
-        print "PRESSING LEFT"
-        self.send_command(win32con.VK_LEFT)
-
-    def cmd_right(self):
-        print "PRESSING RIGHT"
-        self.send_command(win32con.VK_RIGHT)
-
-    def cmd_a(self):
-        print "PRESSING A"
-        self.send_command(self.X_KEY)
-
-    def cmd_b(self):
-        print "PRESSING B"
-        self.send_command(self.C_KEY)
-
-    def cmd_start(self):
-        print "PRESSING START"
-        self.send_command(win32con.VK_SPACE)
-
-    def cmd_select(self):
-        print "PRESSING SELECT"
-        self.send_command(win32con.VK_RETURN)
+    def send_command(self, command, delay=None):
+        win32api.keybd_event(command, 0, 0, 0)
+        time.sleep(delay if delay else self.default_delay)
+        win32api.keybd_event(command, 0, win32con.KEYEVENTF_KEYUP, 0)
 
