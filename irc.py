@@ -1,11 +1,13 @@
 import socket
 from ConfigParser import SafeConfigParser
 
-from interface import WindowsInterface
+import pygame
+
+from game import Game
 
 
 class TwitchIRCBot(object):
-    def __init__(self, config, interface):
+    def __init__(self, config):
         """ Inspired by https://github.com/Abysice/TwitchIRCBot/blob/master/Twitch.py.
         Connects to Twitch IRC on a channel, using the account and oauth token provided."""
 
@@ -18,11 +20,12 @@ class TwitchIRCBot(object):
         self.channel = "#" + self.nickname.lower()
         self.stop = False
         self.socket = None
-        self.interface = interface
+        self.readbuffer = ""
 
     def connect(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.host, self.port))
+        self.socket.setblocking(0)
 
         self.socket.send("PASS %s\r\n" % self.oauth)  # Send the token before the username, for some reason
 
@@ -35,20 +38,30 @@ class TwitchIRCBot(object):
         self.stop = True
 
     def start_consuming(self):
-        readbuffer = ""
+        self.readbuffer = ""
         while not self.stop:
+            self.consume()
+
+    def consume(self):
+        #TODO: better line parsing
+        try:
             bytes_in = self.socket.recv(16)
-            print bytes_in,
+        except socket.error, e:
+            errno, msg = e.args
+            if errno != 10035:
+                raise
+        else:
+            # print bytes_in,
             if bytes_in == '':
                 self.connect()
-            readbuffer += bytes_in
+            self.readbuffer += bytes_in
             # Split the buffer into lines
-            lines = readbuffer.split('\r\n')
+            lines = self.readbuffer.split('\r\n')
             # Pop leftovers back on the buffer
-            if readbuffer.endswith('\r\n'):
-                readbuffer = ""
+            if self.readbuffer.endswith('\r\n'):
+                self.readbuffer = ""
             else:
-                readbuffer = lines[-1]
+                self.readbuffer = lines[-1]
                 lines.pop()
 
             for line in lines:
@@ -63,32 +76,55 @@ class TwitchIRCBot(object):
                     self.consume_line(line)
 
     def consume_line(self, line):
-        line = self.cleanup_line(line)
-        for token in line.split(' '):
-            if not token.strip():  # Ignore emptyness
-                continue
-            self.consume_token(token)
+        prefix, command, args = self.parsemsg(line)
+        if command == 'PRIVMSG':
+            #Prefix looks like user!user@user.twitch.tv, so grab the firs instance
+            if '!' in prefix:
+                user = prefix.split('!')[0]
+                tokens = args[1] if len(args) >= 1 else ''
+                for token in tokens.split():
+                    self.consume_token(user, token)
+            else:
+                print "Invalid prefix %s in line %s" % (prefix, line, )
+        elif command == 'PING':
+            self.socket.send('PONG %s' % args)
 
-    def cleanup_line(self, line):
-        parts = line.split(':')
-        effective = "".join(parts[2:])
-        return effective
-
-    def consume_token(self, token):
+    def consume_token(self, user, token):
         try:
-            self.interface.do(token.lower())
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT + 1, user=user, token=token))
         except Exception, e:
             print "Error processing token %s: %s" % (token, e, )
+
+    def parsemsg(self, s):
+        """Breaks a message from an IRC server into its prefix, command, and arguments.
+        Shamelessly ripped from twisted's IRC implementation
+        """
+        prefix = ''
+        trailing = []
+        if s[0] == ':':
+            prefix, s = s[1:].split(' ', 1)
+        if s.find(' :') != -1:
+            s, trailing = s.split(' :', 1)
+            args = s.split()
+            args.append(trailing)
+        else:
+            args = s.split()
+        command = args.pop(0)
+        return prefix, command, args
 
 
 def main():
     config = SafeConfigParser()
     config.read("twitch.conf")
-    inputcfg = SafeConfigParser()
-    inputcfg.read("input.conf")
-    bot = TwitchIRCBot(config, WindowsInterface(inputcfg))
+
+    game = Game()
+
+    bot = TwitchIRCBot(config)
     bot.connect()
-    bot.start_consuming()
+
+    while True:
+        bot.consume()
+        game.update()
 
 
 if __name__ == "__main__":
