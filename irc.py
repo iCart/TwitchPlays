@@ -1,5 +1,6 @@
 import socket
 from ConfigParser import SafeConfigParser
+import traceback
 
 import pygame
 
@@ -18,41 +19,36 @@ class TwitchIRCBot(object):
         self.oauth = config.get('Twitch', 'oauth')  # use http://twitchapps.com/tmi/ to generate
         self.real_name = config.get('Twitch', 'real_name')  # This doesn't really matter.
         self.channel = "#" + self.nickname.lower()
-        self.stop = False
         self.socket = None
         self.readbuffer = ""
 
     def connect(self):
+        print "Connecting..."
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.host, self.port))
         self.socket.setblocking(0)
 
+        print "Sending Connection info"
         self.socket.send("PASS %s\r\n" % self.oauth)  # Send the token before the username, for some reason
 
         # Send the rest of the login data and join the channel
         self.socket.send("NICK %s\r\n" % self.nickname)
-        self.socket.send("USER %s %s bla :%s\r\n" % (self.ident, self.host, self.real_name))
+        self.socket.send("USER %s %s :%s\r\n" % (self.ident, self.host, self.real_name))
         self.socket.send("JOIN %s\r\n" % self.channel)
 
-    def stop(self):
-        self.stop = True
-
-    def start_consuming(self):
-        self.readbuffer = ""
-        while not self.stop:
-            self.consume()
-
     def consume(self):
-        #TODO: better line parsing
         try:
-            bytes_in = self.socket.recv(16)
+            bytes_in = self.socket.recv(1024)
         except socket.error, e:
             errno, msg = e.args
             if errno != 10035:
+                print "Socket error during read: %s" % e
                 raise
         else:
-            # print bytes_in,
+            print bytes_in,
             if bytes_in == '':
+                print " [X] Received empty string, did i lose my connection? Reconnecting"
+                self.socket.close()
                 self.connect()
             self.readbuffer += bytes_in
             # Split the buffer into lines
@@ -81,19 +77,19 @@ class TwitchIRCBot(object):
             #Prefix looks like user!user@user.twitch.tv, so grab the firs instance
             if '!' in prefix:
                 user = prefix.split('!')[0]
-                tokens = args[1] if len(args) >= 1 else ''
-                for token in tokens.split():
-                    self.consume_token(user, token)
+                if user != 'jtv':  # Ignore jtv, he's a jerk
+                    tokens = args[1] if len(args) >= 1 else ''
+                    self.consume_tokens(user, tokens)
             else:
                 print "Invalid prefix %s in line %s" % (prefix, line, )
         elif command == 'PING':
             self.socket.send('PONG %s' % args)
 
-    def consume_token(self, user, token):
+    def consume_tokens(self, user, tokens):
         try:
-            pygame.event.post(pygame.event.Event(pygame.USEREVENT + 1, user=user, token=token))
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT + 1, user=user, tokens=tokens))
         except Exception, e:
-            print "Error processing token %s: %s" % (token, e, )
+            print " [X] Error processing tokens %s: %s" % (tokens, e, )
 
     def parsemsg(self, s):
         """Breaks a message from an IRC server into its prefix, command, and arguments.
@@ -128,4 +124,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception, e:
+        print traceback.format_exc()
+        print "Woops, something went wrong, please send me a screenshot of this error up there"
+        print "Then press enter to close the program"
+        raw_input()
