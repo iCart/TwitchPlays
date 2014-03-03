@@ -4,7 +4,7 @@ import traceback
 
 import pygame
 
-from game import Game
+from gui import CommandsGUI
 
 
 class TwitchIRCBot(object):
@@ -43,7 +43,9 @@ class TwitchIRCBot(object):
             errno, msg = e.args
             if errno != 10035:
                 print "Socket error during read: %s" % e
-                raise
+                print " [X] Connection lost, reconnecting"
+                self.socket.close()
+                self.connect()
         else:
             print bytes_in,
             if bytes_in == '':
@@ -67,7 +69,7 @@ class TwitchIRCBot(object):
                     print "Received ping: %s" % line
                     answer = "PONG%s" % ("".join(line.split("PING")[1:]), )
                     print "Answering %s" % (answer, )
-                    self.socket.send(answer)
+                    self.socket.sendall(answer)
                 else:
                     self.consume_line(line)
 
@@ -110,10 +112,13 @@ class TwitchIRCBot(object):
 
 
 def main():
+    # fmt = "%(asctime)s: %(message)s"
+    # logging.basicConfig(filename='twitch.log', level=logging.DEBUG, format=fmt)
+
     config = SafeConfigParser()
     config.read("twitch.conf")
 
-    game = Game()
+    game = CommandsGUI()
 
     bot = TwitchIRCBot(config)
     bot.connect()

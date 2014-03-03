@@ -15,8 +15,6 @@ class WindowsInterface(object):
         'space': win32con.VK_SPACE
     }
 
-    special_commands = {}
-
     def __init__(self, inputcfg):
         self.default_delay = .1
         self.inputcfg = inputcfg
@@ -24,7 +22,7 @@ class WindowsInterface(object):
         self.max_delay = float(self.max_delay)
 
     def do(self, token):
-
+        original = token
         try:
             if ',' in token:
                 token, delay = token.split(',')
@@ -33,27 +31,39 @@ class WindowsInterface(object):
             else:
                 delay = self.default_delay
 
-            command = self.inputcfg.get('Inputs', token)
+            #command1+command2 to do them at the same time
+            commands = []
+            for subcommand in token.split('+'):
+                if self.inputcfg.has_option('Inputs', subcommand):
+                    commands.append(self.inputcfg.get('Inputs', subcommand))
+
+            if not commands:
+                return
 
         except Exception, e:
-            # Ignore non-existing commands
+            print "An exception happened while treating token %s: %s" % (original, e, )
             return
 
-        if command in self.normal_commands:
-            self.send_command(self.normal_commands[command], delay)
-        elif len(command) == 1 and ('a' <= command <= 'z'):
-            offset = ord(command) - ord('a')
-            self.send_command(0x41 + offset, delay)
-        elif len(command) == 1 and ('0' <= command <= '9'):
-            offset = ord(command) - ord('0')
-            self.send_command(0x30 + offset, delay)
-        elif command in self.special_commands:
-            self.special_commands[command]()
+        inputs = []
+        for command in commands:
+            if command in self.normal_commands:
+                inputs.append(self.normal_commands[command])
+            elif len(command) == 1 and ('a' <= command <= 'z'):
+                offset = ord(command) - ord('a')
+                inputs.append(0x41 + offset)
+            elif len(command) == 1 and ('0' <= command <= '9'):
+                offset = ord(command) - ord('0')
+                inputs.append(0x30 + offset)
+        self.send_commands(inputs, delay)
         #Dirty workaround: return command to get a cleaned up token in game.py
-        return command
+        return token
 
-    def send_command(self, command, delay=None):
+    def send_commands(self, commands, delay=None):
 
-        win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), 0, 0)
+        for command in commands:
+            win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), 0, 0)
+
         time.sleep(delay if delay else self.default_delay)
-        win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), win32con.KEYEVENTF_KEYUP, 0)
+
+        for command in commands:
+            win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), win32con.KEYEVENTF_KEYUP, 0)

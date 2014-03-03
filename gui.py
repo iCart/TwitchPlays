@@ -32,12 +32,13 @@ class Text(object):
         self.rect.topleft = x, y
 
 
-class Game(object):
+class CommandsGUI(object):
     def __init__(self):
         pygame.init()
 
         self.inputcfg = SafeConfigParser()
         self.inputcfg.read("input.conf")
+        self.n_commands = self.inputcfg.getint("gui", 'commands')
 
         try:
             txtcolor = self.inputcfg.get('gui', 'text').lower()
@@ -85,7 +86,7 @@ class Game(object):
         pygame.display.update()
 
     def draw_text(self):
-        text_height = self.height / 10
+        text_height = self.height / self.n_commands
 
         for i, line in enumerate(reversed(self.processed)):
             txt = Text("%s: %s" % line, text_height, self.txtcolor, self.bgcolor,
