@@ -51,6 +51,8 @@ class CommandsGUI(object):
 
         self.interface = WindowsInterface(self.inputcfg)
 
+        self.blacklist = [user.lower() for user in self.inputcfg.get('Misc', 'blacklist').split(',')]
+
         self.txtcolor = BLACK if txtcolor == 'black' else WHITE
         self.bgcolor = BLACK if bgcolor == 'black' else WHITE
 
@@ -72,6 +74,11 @@ class CommandsGUI(object):
                 sys.exit()
             elif event.type == pygame.USEREVENT + 1:
                 accepted_tokens = []
+
+                if event.user.lower() in self.blacklist:
+                    print "Rejected command from user %s" % event.user
+                    continue
+
                 for token in event.tokens.split():
                     cmd = self.interface.do(token)
                     if cmd:
