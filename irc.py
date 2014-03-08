@@ -47,7 +47,7 @@ class TwitchIRCBot(object):
                 self.socket.close()
                 self.connect()
         else:
-            print bytes_in,
+            # print bytes_in,
             if bytes_in == '':
                 print " [X] Received empty string, did i lose my connection? Reconnecting"
                 self.socket.close()

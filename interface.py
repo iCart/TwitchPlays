@@ -20,6 +20,7 @@ class WindowsInterface(object):
         self.inputcfg = inputcfg
         self.max_delay = self.inputcfg.get('Misc', 'max_delay')
         self.max_delay = float(self.max_delay)
+        self.last_start = None
 
     def do(self, token):
         original = token
@@ -46,6 +47,12 @@ class WindowsInterface(object):
 
         inputs = []
         for command in commands:
+
+            if command == self.inputcfg.get('Misc', 'startkey') and not self.check_start():
+                continue  # Don't show this to NS, ever - sf
+            else:
+                print "Generating input: %s" % command
+
             if command in self.normal_commands:
                 inputs.append(self.normal_commands[command])
             elif len(command) == 1 and ('a' <= command <= 'z'):
@@ -67,3 +74,25 @@ class WindowsInterface(object):
 
         for command in commands:
             win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), win32con.KEYEVENTF_KEYUP, 0)
+
+    def check_start(self):
+
+        #First time
+        if self.last_start is None:
+            print "Accepted start command, not going to accept any for another %s seconds" % self.inputcfg.getint(
+                'Misc', 'startdelay')
+            self.last_start = time.time()
+            return True
+        #Already pressed some time in the past
+        else:
+            now = time.time()
+            time_difference = now - self.last_start
+            print 'td = %s' % time_difference
+            if int(time_difference) < self.inputcfg.getint('Misc', 'startdelay'):
+                print "Rejected start command because it was already pressed %s seconds ago" % int(time_difference)
+                return False
+            else:
+                print "Accepted start command, not going to accept any for another %s seconds" % self.inputcfg.getint(
+                    'Misc', 'startdelay')
+                self.last_start = time.time()
+                return True
