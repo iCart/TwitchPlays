@@ -87,7 +87,6 @@ class WindowsInterface(object):
         else:
             now = time.time()
             time_difference = now - self.last_start
-            print 'td = %s' % time_difference
             if int(time_difference) < self.inputcfg.getint('Misc', 'startdelay'):
                 print "Rejected start command because it was already pressed %s seconds ago" % int(time_difference)
                 return False
