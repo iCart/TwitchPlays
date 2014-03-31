@@ -83,6 +83,11 @@ class TwitchIRCBot(object):
                 user = prefix.split('!')[0]
                 if user != 'jtv':  # Ignore jtv, he's a jerk
                     tokens = args[1] if len(args) >= 1 else ''
+                    if tokens:
+                        for blacktoken in self.blacklist:
+                            if blacktoken.strip().lower() in tokens:
+                                print "Banning user %s for saying %s" % (user, blacktoken)
+                                return self.ban(user)
                     self.consume_tokens(user, tokens)
             else:
                 print "Invalid prefix %s in line %s" % (prefix, line, )
@@ -93,7 +98,8 @@ class TwitchIRCBot(object):
                 user = prefix.split('!')[0].strip().strip('#')
                 for blacktoken in self.blacklist:
                     if blacktoken.strip().lower() in user.lower():
-                        return self.ban(user, blacktoken)  # Breaks the loop
+                        print "Banning user %s because it contains %s" % (user, blacktoken)
+                        return self.ban(user)  # Breaks the loop
 
     def consume_tokens(self, user, tokens):
         try:
@@ -118,8 +124,7 @@ class TwitchIRCBot(object):
         command = args.pop(0)
         return prefix, command, args
 
-    def ban(self, user, token):
-        print "Banning user %s because it contains %s" % (user, token)
+    def ban(self, user):
         self.socket.sendall(".ban %s" % user)
 
 
