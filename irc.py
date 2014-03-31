@@ -21,6 +21,8 @@ class TwitchIRCBot(object):
         self.channel = "#" + self.nickname.lower()
         self.socket = None
         self.readbuffer = ""
+        with open('blacklist') as blackfile:
+            self.blacklist = blackfile.readlines()
 
     def connect(self):
         print "Connecting..."
@@ -86,6 +88,12 @@ class TwitchIRCBot(object):
                 print "Invalid prefix %s in line %s" % (prefix, line, )
         elif command == 'PING':
             self.socket.send('PONG %s' % args)
+        elif command == "JOIN":
+            if args:
+                user = prefix.split('!')[0].strip().strip('#')
+                for blacktoken in self.blacklist:
+                    if blacktoken.strip().lower() in user.lower():
+                        return self.ban(user, blacktoken)  # Breaks the loop
 
     def consume_tokens(self, user, tokens):
         try:
@@ -109,6 +117,10 @@ class TwitchIRCBot(object):
             args = s.split()
         command = args.pop(0)
         return prefix, command, args
+
+    def ban(self, user, token):
+        print "Banning user %s because it contains %s" % (user, token)
+        self.socket.sendall(".ban %s" % user)
 
 
 def main():
