@@ -23,6 +23,8 @@ class TwitchIRCBot(object):
         self.readbuffer = ""
         with open('blacklist') as blackfile:
             self.blacklist = blackfile.readlines()
+        with open('censorlist') as censorfile:
+            self.censored = censorfile.readlines()
 
     def connect(self):
         print "Connecting..."
@@ -84,7 +86,7 @@ class TwitchIRCBot(object):
                 if user != 'jtv':  # Ignore jtv, he's a jerk
                     tokens = args[1] if len(args) >= 1 else ''
                     if tokens:
-                        for blacktoken in self.blacklist:
+                        for blacktoken in self.censored:
                             if blacktoken.strip().lower() in tokens:
                                 print "Banning user %s for saying %s" % (user, blacktoken)
                                 return self.ban(user)
