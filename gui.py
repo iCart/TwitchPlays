@@ -76,7 +76,7 @@ class CommandsGUI(object):
                 accepted_tokens = []
 
                 if event.user.lower() in self.blacklist:
-                    print "Rejected command from user %s" % event.user
+                    print "Rejected command from user %s" % event.user, self.blacklist
                     continue
 
                 for token in event.tokens.split():

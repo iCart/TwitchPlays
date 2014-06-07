@@ -67,6 +67,7 @@ class WindowsInterface(object):
 
     def send_commands(self, commands, delay=None):
 
+        print commands
         for command in commands:
             win32api.keybd_event(0, win32api.MapVirtualKey(command, 0), 0, 0)
 
